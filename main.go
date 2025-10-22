@@ -24,28 +24,28 @@ func main() {
 
 	a := app.New()
 	w := a.NewWindow("MIDI Flash")
-	w.Resize(fyne.NewSize(1000, 600)) // ventana grande y redimensionable
+	w.Resize(fyne.NewSize(1000, 600))
 	w.SetPadded(false)
 
-	// Rectángulo que hace flash
+	// --- FLASH ---
 	flashRect := canvas.NewRectangle(color.White)
-	flashRect.SetMinSize(fyne.NewSize(600, 400)) // espacio grande para flash
+	flashRect.SetMinSize(fyne.NewSize(600, 400))
 	flashContainer := container.NewMax(flashRect)
 
-	// Panel de mensajes MIDI (derecha) con scroll funcional
-	msgBox := container.NewVBox() // VBox donde se añaden los mensajes
+	// --- MENSAJES MIDI ---
+	msgBox := container.NewVBox()
 	scrollMessages := container.NewVScroll(msgBox)
 	scrollMessages.SetMinSize(fyne.NewSize(350, 400))
 
-	// Listas de puertos
+	// --- CONFIGURACIÓN ---
 	inPortsList := widget.NewMultiLineEntry()
 	inPortsList.SetPlaceHolder("Puertos MIDI de entrada...")
 	inPortsList.Disable()
+
 	outPortsList := widget.NewMultiLineEntry()
 	outPortsList.SetPlaceHolder("Puertos MIDI de salida...")
 	outPortsList.Disable()
 
-	// Flash time configurable
 	flashTimeMs := 100
 	flashEntry := widget.NewEntry()
 	flashEntry.SetText(strconv.Itoa(flashTimeMs))
@@ -57,32 +57,26 @@ func main() {
 		}
 	})
 
-	menu := container.NewVBox(
+	configTab := container.NewVBox(
+		widget.NewLabel("Configuración del flash y MIDI"),
+		widget.NewSeparator(),
 		widget.NewLabel("Tiempo de flash (ms):"),
 		flashEntry,
 		flashButton,
+		widget.NewSeparator(),
 		widget.NewLabel("Puertos MIDI de entrada:"),
 		inPortsList,
 		widget.NewLabel("Puertos MIDI de salida:"),
 		outPortsList,
 	)
 
-	// Panel principal: izquierda flash, derecha mensajes MIDI
-	mainContent := container.NewHSplit(flashContainer, scrollMessages)
-	mainContent.SetOffset(0.6) // 60% izquierda, 40% derecha
-
-	// Contenedor final: menú arriba, contenido abajo
-	mainContainer := container.NewBorder(menu, nil, nil, nil, mainContent)
-	w.SetContent(mainContainer)
-
-	// Inicializa driver MIDI
+	// --- INICIALIZA DRIVER MIDI ---
 	drv, err := rtmididrv.New()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer drv.Close()
 
-	// Listar puertos de entrada
 	ins, err := drv.Ins()
 	if err != nil {
 		log.Fatal(err)
@@ -92,39 +86,32 @@ func main() {
 		inPortsList.SetText(inPortsList.Text + fmt.Sprintf("[%d] %s\n", i, in.String()))
 	}
 
-	// Listar puertos de salida
 	outs, err := drv.Outs()
 	if err != nil {
 		log.Fatal(err)
 	}
 	outPortsList.SetText("")
-	fmt.Println(outs)
 	for i, out := range outs {
-		fmt.Println(i)
-		fmt.Println(out)
-
 		outPortsList.SetText(outPortsList.Text + fmt.Sprintf("[%d] %s\n", i, out.String()))
 	}
 
-	// Selecciona primer puerto
+	// --- SELECCIONA PRIMER PUERTO MIDI ---
 	in, err := midi.InPort(0)
 	if err != nil {
-		fmt.Println("can't find input port")
+		fmt.Println("No se encuentra puerto de entrada MIDI (usa índice válido)")
 		return
 	}
 
 	flashCh := make(chan struct{}, 1)
-	msgCh := make(chan string, 50) // canal para mensajes MIDI
+	msgCh := make(chan string, 50)
 
-	// Listener MIDI
+	// --- LISTENER MIDI ---
 	stop, err := midi.ListenTo(in, func(msg midi.Message, timestampms int32) {
-		// señal de flash
 		select {
 		case flashCh <- struct{}{}:
 		default:
 		}
 
-		// preparar mensaje de consola
 		var bt []byte
 		var ch, key, vel uint8
 		message := ""
@@ -144,7 +131,6 @@ func main() {
 		default:
 		}
 
-		// imprimir en consola
 		fmt.Println(message)
 	}, midi.UseSysEx())
 
@@ -153,16 +139,14 @@ func main() {
 		return
 	}
 
-	// Goroutine para manejar flash en hilo principal usando fyne.Do
+	// --- GOROUTINE FLASH ---
 	go func() {
 		for range flashCh {
 			fyne.Do(func() {
-				flashRect.FillColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // rojo
+				flashRect.FillColor = color.RGBA{R: 255, G: 0, B: 0, A: 255}
 				flashRect.Refresh()
 			})
-
 			time.Sleep(time.Duration(flashTimeMs) * time.Millisecond)
-
 			fyne.Do(func() {
 				flashRect.FillColor = color.White
 				flashRect.Refresh()
@@ -170,19 +154,19 @@ func main() {
 		}
 	}()
 
-	// Goroutine para actualizar panel de mensajes MIDI
+	// --- GOROUTINE MENSAJES ---
 	go func() {
 		for msg := range msgCh {
-			m := msg // captura variable
+			m := msg
 			fyne.Do(func() {
 				msgLabel := widget.NewLabel(m)
-				msgBox.Add(msgLabel) // añade nueva línea
+				msgBox.Add(msgLabel)
 				scrollMessages.ScrollToBottom()
 			})
 		}
 	}()
 
-	// Ctrl+C para salir
+	// --- MANEJO CTRL+C ---
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -191,5 +175,14 @@ func main() {
 		a.Quit()
 	}()
 
+	// --- TABS ---
+	flashTab := container.NewBorder(nil, nil, nil, nil, flashContainer)
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Flash", flashTab),
+		container.NewTabItem("Configuración", configTab),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	w.SetContent(tabs)
 	w.ShowAndRun()
 }
