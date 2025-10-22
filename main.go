@@ -25,18 +25,18 @@ func main() {
 
 	a := app.New()
 	w := a.NewWindow("MIDI Flash")
-	w.Resize(fyne.NewSize(1000, 600))
+	w.Resize(fyne.NewSize(100, 100))
 	w.SetPadded(false)
 
 	// --- RECTÁNGULO DE FLASH ---
 	flashRect := canvas.NewRectangle(color.Black)
-	flashRect.SetMinSize(fyne.NewSize(600, 400))
+	flashRect.SetMinSize(fyne.NewSize(100, 100))
 	flashContainer := container.NewMax(flashRect)
 
 	// --- MENSAJES MIDI ---
 	msgBox := container.NewVBox()
 	scrollMessages := container.NewVScroll(msgBox)
-	scrollMessages.SetMinSize(fyne.NewSize(350, 400))
+	scrollMessages.SetMinSize(fyne.NewSize(350, 100))
 
 	// --- CONFIGURACIÓN ---
 	inPortsList := widget.NewMultiLineEntry()
@@ -49,7 +49,7 @@ func main() {
 
 	flashTimeMs := 100
 	repetitions := 1
-	delayMs := 50 // nueva variable para delay entre flashes
+	delayMs := 50
 
 	flashEntry := widget.NewEntry()
 	flashEntry.SetText(strconv.Itoa(flashTimeMs))
@@ -97,7 +97,7 @@ func main() {
 		if stop != nil {
 			stop()
 			stop = nil
-			time.Sleep(200 * time.Millisecond) // dar tiempo al driver de liberar recursos
+			time.Sleep(200 * time.Millisecond)
 		}
 
 		if err := in.Open(); err != nil {
@@ -222,7 +222,8 @@ func main() {
 		updatePorts()
 	})
 
-	configTab := container.NewVBox(
+	// --- Pestaña de configuración con scroll ---
+	configContent := container.NewVBox(
 		widget.NewLabel("Configuración del flash y MIDI"),
 		widget.NewSeparator(),
 		widget.NewLabel("Tiempo de flash (ms):"),
@@ -244,12 +245,14 @@ func main() {
 		widget.NewLabel("Puertos MIDI de salida:"),
 		outPortsList,
 	)
+	configScroll := container.NewVScroll(configContent)
+	configScroll.SetMinSize(fyne.NewSize(300, 100)) // tamaño inicial mínimo
 
 	flashTab := container.NewBorder(nil, nil, nil, nil, flashContainer)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Flash", flashTab),
-		container.NewTabItem("Configuración", configTab),
+		container.NewTabItem("Configuración", configScroll),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
