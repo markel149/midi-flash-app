@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Go build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Application binaries
+midi-flash
+midi-flash.exe
+midi-flash-linux
+midi-flash-mac
+midi-flash-mac-arm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
