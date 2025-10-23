@@ -58,7 +58,6 @@ func NewComponents(midiManager *midi.Manager) *Components {
 
 	// Create flash configuration
 	cfg := config.NewFlashConfig()
-	
 	flashEntry := widget.NewEntry()
 	flashEntry.SetText(strconv.Itoa(cfg.TimeMs))
 
